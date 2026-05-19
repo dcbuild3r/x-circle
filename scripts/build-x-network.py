@@ -61,6 +61,33 @@ def read_tagged_rows(path: Path | None):
     return tagged
 
 
+INACTIVE_TAGS = {
+    "inactive",
+    "no-longer-active",
+    "no longer active",
+    "status:inactive",
+    "status:deleted",
+    "status:suspended",
+    "status:deactivated",
+    "deleted",
+    "suspended",
+    "deactivated",
+}
+
+
+def boolish(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y", "inactive", "deleted", "suspended", "deactivated"}
+    return bool(value)
+
+
+def inactive_from_row(row):
+    tags = [str(tag).strip().lower() for tag in row.get("tags") or []]
+    return boolish(row.get("inactive") or row.get("no_longer_active") or row.get("deleted") or row.get("suspended")) or any(tag in INACTIVE_TAGS for tag in tags)
+
+
 def score(row):
     return (
         row["dm_total"] * 5
@@ -95,6 +122,8 @@ def normalized_node(row):
         "retweetsSent": int(row.get("retweets_sent") or 0),
         "interactionScore": float(row.get("interaction_score") or 0),
         "tags": row.get("tags") or [],
+        "inactive": bool(row.get("inactive")),
+        "inactiveReason": row.get("inactive_reason"),
         "url": f"https://x.com/{handle}",
     }
 
@@ -102,6 +131,8 @@ def normalized_node(row):
 def build_edges(nodes):
     edges = []
     for node in nodes:
+        if node.get("inactive"):
+            continue
         if node["interactionScore"] < 10 or not node["id"] or str(node["id"]).startswith("id-"):
             continue
         if node["dmTotal"] > 0:
@@ -258,6 +289,8 @@ def main():
                 "replies_sent": 0,
                 "retweets_sent": 0,
                 "tags": [],
+                "inactive": False,
+                "inactive_reason": None,
             }
         return interactions[key]
 
@@ -318,6 +351,8 @@ def main():
         row["bio"] = tagged_row.get("bio") or row["bio"]
         row["verified"] = tagged_row.get("verified")
         row["tags"] = tagged_row.get("tags") or []
+        row["inactive"] = inactive_from_row(tagged_row)
+        row["inactive_reason"] = tagged_row.get("inactiveReason") or tagged_row.get("inactive_reason")
 
     interaction_rows = list(interactions.values())
     for row in interaction_rows:
@@ -367,6 +402,7 @@ def main():
             "imported_phone_contacts": len(contacts),
             "interactions_rows": len(interaction_rows),
             "interactions_with_score_gt_0": sum(1 for row in interaction_rows if row["interaction_score"] > 0),
+            "inactive_profiles": sum(1 for row in interaction_rows if row.get("inactive")),
         },
         "nodes": nodes,
         "edges": edges,
@@ -380,7 +416,7 @@ def main():
     write_jsonl(normalized_dir / "followers.jsonl", [{"userId": user_id, "handle": id_to_handle.get(user_id), "mutual": user_id in mutual_ids} for user_id in sorted(followers)])
     write_jsonl(normalized_dir / "following.jsonl", [{"userId": user_id, "handle": id_to_handle.get(user_id), "mutual": user_id in mutual_ids} for user_id in sorted(following)])
 
-    top_rows = [row for row in interaction_rows if row["interaction_score"] > 0][:200]
+    top_rows = [row for row in interaction_rows if row["interaction_score"] > 0 and not row.get("inactive")][:200]
     top_markdown = ["# Top X interactions", "", "| Rank | Handle | DMs | Replies | Mentions | RTs | Score |", "|---|---|---:|---:|---:|---:|---:|"]
     for index, row in enumerate(top_rows, 1):
         top_markdown.append(

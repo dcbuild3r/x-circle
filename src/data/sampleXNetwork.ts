@@ -56,6 +56,7 @@ const nodes: XNetworkNode[] = Array.from({ length: 260 }, (_, index) => {
   const retweetsSent = (index * 7) % 88;
   const groupDmMessages = index % 9 === 0 ? (index * 3) % 42 : 0;
   const interactionScore = dmTotal * 5 + repliesSent * 3 + mentionsSent + retweetsSent + groupDmMessages * 0.5;
+  const inactive = index > 0 && index % 67 === 0;
   return {
     id: `sample-${index + 1}`,
     userId: `${1000000 + index}`,
@@ -78,13 +79,15 @@ const nodes: XNetworkNode[] = Array.from({ length: 260 }, (_, index) => {
     repliesSent,
     retweetsSent,
     interactionScore,
-    tags: tagGroups[index % tagGroups.length],
+    tags: inactive ? ['status:inactive', ...tagGroups[index % tagGroups.length]] : tagGroups[index % tagGroups.length],
+    inactive,
+    inactiveReason: inactive ? 'no longer active' : undefined,
     url: `https://x.com/${handle}`,
     avatarUrl: avatarDataUrl(handle, colorForIndex(index)),
   };
 }).sort((a, b) => b.interactionScore - a.interactionScore || a.handle.localeCompare(b.handle));
 
-const edges: XNetworkEdge[] = nodes.slice(0, 180).flatMap((node) => {
+const edges: XNetworkEdge[] = nodes.filter((node) => !node.inactive).slice(0, 180).flatMap((node) => {
   const rows: XNetworkEdge[] = [];
   if (node.dmTotal > 0) rows.push({ source: 'account:sample_builder', target: node.id, type: 'dm', weight: node.dmTotal });
   if (node.repliesSent > 30) rows.push({ source: 'account:sample_builder', target: node.id, type: 'reply', weight: node.repliesSent });

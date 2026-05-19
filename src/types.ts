@@ -19,6 +19,8 @@ export interface XNetworkNode {
   retweetsSent: number;
   interactionScore: number;
   tags: string[];
+  inactive?: boolean;
+  inactiveReason?: string;
   url: string;
   taggedUrl?: string;
   avatarPath?: string;

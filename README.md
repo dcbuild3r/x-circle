@@ -151,6 +151,14 @@ Keep generated private archive data out of Git.
 
 Codex should be able to infer most role and tag data from public profile metadata. You can edit `data/x-network/tagged-following.jsonl` afterward if you want more personal labels.
 
+If a profile no longer exists or should not appear in Top 200 screenshots, mark it inactive in `tagged-following.jsonl`:
+
+```json
+{"handle":"old_handle","inactive":true,"inactiveReason":"no longer active","tags":["status:inactive"]}
+```
+
+Inactive profiles stay greyed out behind the **No longer active** filter in the list, but they are excluded from graph counts and screenshot exports.
+
 ## Data Model
 
 The app expects:

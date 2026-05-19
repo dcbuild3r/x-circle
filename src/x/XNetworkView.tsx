@@ -96,6 +96,7 @@ export function XNetworkView({
   const [followsMeOnly, setFollowsMeOnly] = useState(false);
   const [iFollowOnly, setIFollowOnly] = useState(false);
   const [dmOnly, setDmOnly] = useState(false);
+  const [inactiveOnly, setInactiveOnly] = useState(false);
   const [activeNamespaces, setActiveNamespaces] = useState<Set<string>>(() => new Set());
   const [showAllGraphNodes, setShowAllGraphNodes] = useState(false);
   const [graphMode, setGraphMode] = useState<XGraphMode>('network');
@@ -104,7 +105,7 @@ export function XNetworkView({
   const namespaces = useMemo(() => buildTagNamespaces(xNetwork.nodes), [xNetwork.nodes]);
   const topNodes = useMemo(
     () => xNetwork.nodes
-      .filter((node) => node.interactionScore > 0 && !isSelfNode(node, xNetwork.account?.handle))
+      .filter((node) => node.interactionScore > 0 && !isSelfNode(node, xNetwork.account?.handle) && !isInactiveNode(node))
       .sort(sortByScoreThenHandle),
     [xNetwork.account?.handle, xNetwork.nodes],
   );
@@ -114,6 +115,7 @@ export function XNetworkView({
     return xNetwork.nodes
       .filter((node) => {
         if (isSelfNode(node, xNetwork.account?.handle)) return false;
+        if (inactiveOnly ? !isInactiveNode(node) : isInactiveNode(node)) return false;
         if (mutualOnly && !node.mutual) return false;
         if (followsMeOnly && !node.followsYou) return false;
         if (iFollowOnly && !node.iFollow) return false;
@@ -134,19 +136,20 @@ export function XNetworkView({
         return true;
       })
       .sort(sortByScoreThenHandle);
-  }, [activeNamespaces, dmOnly, followsMeOnly, iFollowOnly, mutualOnly, query, xNetwork.account?.handle, xNetwork.nodes]);
+  }, [activeNamespaces, dmOnly, followsMeOnly, iFollowOnly, inactiveOnly, mutualOnly, query, xNetwork.account?.handle, xNetwork.nodes]);
 
   const graphNodes = useMemo(() => {
+    if (inactiveOnly) return [];
     const limit = graphMode === 'circle200' ? 200 : showAllGraphNodes ? GRAPH_LIMIT_MAX : GRAPH_LIMIT_DEFAULT;
     const eligibleNodes = filteredNodes
-      .filter((node) => node.interactionScore >= 10 && !node.id.startsWith('id:'));
+      .filter((node) => node.interactionScore >= 10 && !isUnresolvedNode(node) && !isInactiveNode(node));
     if (graphMode === 'circle200') {
       return eligibleNodes.slice(0, limit);
     }
     const avatarNodes = eligibleNodes.filter((node) => Boolean(node.avatarUrl));
     const missingAvatarNodes = eligibleNodes.filter((node) => !node.avatarUrl);
     return [...avatarNodes, ...missingAvatarNodes].slice(0, limit);
-  }, [filteredNodes, graphMode, showAllGraphNodes]);
+  }, [filteredNodes, graphMode, inactiveOnly, showAllGraphNodes]);
 
   const selectedFromRoute = useMemo(() => {
     if (!initialSelectedHandle) return null;
@@ -216,13 +219,17 @@ export function XNetworkView({
             setIFollowOnly={setIFollowOnly}
             dmOnly={dmOnly}
             setDmOnly={setDmOnly}
+            inactiveOnly={inactiveOnly}
+            setInactiveOnly={setInactiveOnly}
             namespaces={namespaces}
             activeNamespaces={activeNamespaces}
             toggleNamespace={toggleNamespace}
           />
           <div className="x-network-graph-meta">
             <span>
-              Rendering {graphNodes.length.toLocaleString()} of {filteredNodes.length.toLocaleString()} filtered profiles
+              {inactiveOnly
+                ? `Showing ${filteredNodes.length.toLocaleString()} no longer active profiles in the list`
+                : `Rendering ${graphNodes.length.toLocaleString()} of ${filteredNodes.length.toLocaleString()} active filtered profiles`}
             </span>
             <button
               type="button"
@@ -237,6 +244,7 @@ export function XNetworkView({
             account={xNetwork.account}
             accountHandle={xNetwork.account?.handle}
             nodes={graphNodes}
+            indexNodes={inactiveOnly ? filteredNodes : graphNodes}
             topInteractorNodes={topNodes.slice(0, 200)}
             edges={xNetwork.edges}
             graphMode={graphMode}
@@ -294,6 +302,8 @@ function XNetworkFilters({
   setIFollowOnly,
   dmOnly,
   setDmOnly,
+  inactiveOnly,
+  setInactiveOnly,
   namespaces,
   activeNamespaces,
   toggleNamespace,
@@ -308,6 +318,8 @@ function XNetworkFilters({
   setIFollowOnly: (value: boolean) => void;
   dmOnly: boolean;
   setDmOnly: (value: boolean) => void;
+  inactiveOnly: boolean;
+  setInactiveOnly: (value: boolean) => void;
   namespaces: Array<{ namespace: string; count: number }>;
   activeNamespaces: Set<string>;
   toggleNamespace: (namespace: string) => void;
@@ -329,6 +341,7 @@ function XNetworkFilters({
         <ToggleButton active={followsMeOnly} onChange={setFollowsMeOnly} label="Follows me" />
         <ToggleButton active={iFollowOnly} onChange={setIFollowOnly} label="I follow" />
         <ToggleButton active={dmOnly} onChange={setDmOnly} label="DM > 0" />
+        <ToggleButton active={inactiveOnly} onChange={setInactiveOnly} label="No longer active" />
       </div>
       <div className="x-tag-namespace-row" aria-label="Tag namespace filters">
         {namespaces.map(({ namespace, count }) => (
@@ -368,6 +381,7 @@ function XNetworkGraph({
   account,
   accountHandle,
   nodes,
+  indexNodes,
   topInteractorNodes,
   edges,
   graphMode,
@@ -378,6 +392,7 @@ function XNetworkGraph({
   account?: XNetworkAccount;
   accountHandle?: string;
   nodes: XNetworkNode[];
+  indexNodes: XNetworkNode[];
   topInteractorNodes: XNetworkNode[];
   edges: XNetworkEdge[];
   graphMode: XGraphMode;
@@ -400,12 +415,15 @@ function XNetworkGraph({
   const graphModel = useMemo(() => buildGraphModel(accountHandle, nodes, edges, graphMode), [accountHandle, edges, graphMode, nodes]);
   const avatarCount = useMemo(() => nodes.filter((node) => Boolean(node.avatarUrl)).length, [nodes]);
   const indexEntries = useMemo(() => {
-    const rankedNodes = nodes.map((node, index) => ({ node, rank: index + 1 }));
+    const rankedNodes = indexNodes.map((node, index) => ({ node, rank: index + 1 }));
     const normalizedQuery = normalizeHandleSearch(indexQuery);
     if (!normalizedQuery) return rankedNodes;
     return rankedNodes.filter(({ node }) => normalizeHandleSearch(node.handle).includes(normalizedQuery));
-  }, [indexQuery, nodes]);
-  const indexTitle = graphMode === 'circle200'
+  }, [indexNodes, indexQuery]);
+  const showingInactiveIndex = indexNodes.some(isInactiveNode);
+  const indexTitle = showingInactiveIndex
+    ? 'No longer active'
+    : graphMode === 'circle200'
     ? 'Top 200'
     : nodes.length >= GRAPH_LIMIT_MAX
       ? 'Top 5,000'
@@ -692,6 +710,7 @@ function XNetworkGraph({
             <button
               key={node.id}
               type="button"
+              className={isInactiveNode(node) ? 'x-graph-index-inactive' : undefined}
               aria-pressed={selectedNode?.id === node.id}
               onClick={() => onSelectNode(node)}
             >
@@ -703,6 +722,9 @@ function XNetworkGraph({
               )}
               <strong>@{node.handle}</strong>
               <span className="x-graph-index-metrics">
+                {isInactiveNode(node) ? (
+                  <small className="x-graph-index-status">{inactiveLabel(node)}</small>
+                ) : null}
                 <small>{formatCount(totalInteractionCount(node))} interactions</small>
                 <span className="x-graph-index-metric-row">
                   <small>{formatCount(node.dmTotal)} DM</small>
@@ -1403,7 +1425,7 @@ function XNetworkTable({
           <tbody style={{ height: sorted.length * TABLE_ROW_HEIGHT }}>
             <tr aria-hidden="true" style={{ height: start * TABLE_ROW_HEIGHT }} />
             {visibleRows.map((node, index) => (
-              <tr key={node.id} style={{ height: TABLE_ROW_HEIGHT }}>
+              <tr key={node.id} className={isInactiveNode(node) ? 'x-table-row-inactive' : undefined} style={{ height: TABLE_ROW_HEIGHT }}>
                 <td>{(start + index + 1).toLocaleString()}</td>
                 <td>
                   <button type="button" className="x-table-handle" onClick={() => onSelectNode(node)}>
@@ -1411,7 +1433,7 @@ function XNetworkTable({
                   </button>
                 </td>
                 <td>{node.name}</td>
-                <td>{node.mutual ? 'yes' : node.followsYou ? 'follows me' : node.iFollow ? 'i follow' : 'no'}</td>
+                <td>{isInactiveNode(node) ? inactiveLabel(node) : node.mutual ? 'yes' : node.followsYou ? 'follows me' : node.iFollow ? 'i follow' : 'no'}</td>
                 <td>{node.dmTotal ? `${node.dmSent.toLocaleString()}/${node.dmReceived.toLocaleString()}` : '-'}</td>
                 <td>{formatNumber(node.repliesSent)}</td>
                 <td>{formatNumber(node.mentionsSent)}</td>
@@ -1544,6 +1566,7 @@ function XNodeDrawer({ node, onClose }: { node: XNetworkNode; onClose: () => voi
         </button>
       </header>
       <p>{node.bio || 'No bio captured in the local archive.'}</p>
+      {isInactiveNode(node) ? <p className="x-node-inactive-note">{inactiveLabel(node)}</p> : null}
       <div className="x-node-metrics">
         <BigNumber label="Score" value={Math.round(node.interactionScore)} />
         <BigNumber label="DMs" value={node.dmTotal} />
@@ -1590,6 +1613,32 @@ function buildTagNamespaces(nodes: XNetworkNode[]) {
     .map(([namespace, count]) => ({ namespace, count }))
     .sort((a, b) => b.count - a.count || a.namespace.localeCompare(b.namespace))
     .slice(0, 10);
+}
+
+const INACTIVE_TAGS = new Set([
+  'inactive',
+  'no-longer-active',
+  'no longer active',
+  'status:inactive',
+  'status:deleted',
+  'status:suspended',
+  'status:deactivated',
+  'deleted',
+  'suspended',
+  'deactivated',
+]);
+
+function isInactiveNode(node: XNetworkNode): boolean {
+  if (node.inactive || isUnresolvedNode(node)) return true;
+  return node.tags.some((tag) => INACTIVE_TAGS.has(tag.trim().toLowerCase()));
+}
+
+function isUnresolvedNode(node: XNetworkNode): boolean {
+  return node.id.startsWith('id:') || node.id.startsWith('id-') || node.handle.startsWith('id:') || node.handle.startsWith('id-');
+}
+
+function inactiveLabel(node: XNetworkNode): string {
+  return node.inactiveReason || (isUnresolvedNode(node) ? 'unresolved archive user' : 'no longer active');
 }
 
 function sortByScoreThenHandle(a: XNetworkNode, b: XNetworkNode): number {

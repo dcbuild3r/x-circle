@@ -808,6 +808,20 @@
   background: color-mix(in srgb, var(--neon-cyan) 9%, var(--surface));
 }
 
+.x-graph-index button.x-graph-index-inactive {
+  border-color: rgba(148, 163, 184, 0.16);
+  color: color-mix(in srgb, var(--muted) 84%, #fff);
+  opacity: 0.62;
+  filter: grayscale(0.92);
+}
+
+.x-graph-index button.x-graph-index-inactive:hover,
+.x-graph-index button.x-graph-index-inactive[aria-pressed="true"] {
+  border-color: rgba(148, 163, 184, 0.36);
+  background: rgba(148, 163, 184, 0.08);
+  opacity: 0.88;
+}
+
 .x-graph-index-rank,
 .x-graph-index-dot {
   display: grid;
@@ -849,6 +863,11 @@
 
 .x-graph-index-metrics > small:first-child {
   white-space: nowrap;
+}
+
+.x-graph-index-status {
+  color: #94a3b8;
+  font-weight: 760;
 }
 
 .x-graph-index small,
@@ -907,6 +926,16 @@
   color: var(--text);
   font-weight: 760;
   text-align: left;
+}
+
+.x-table-row-inactive {
+  color: var(--muted);
+  opacity: 0.58;
+  filter: grayscale(0.9);
+}
+
+.x-table-row-inactive .x-table-handle {
+  color: var(--muted);
 }
 
 .x-stat-grid,
@@ -1023,6 +1052,14 @@
 .x-node-drawer p,
 .x-node-drawer header span {
   color: var(--muted);
+}
+
+.x-node-inactive-note {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.08);
+  padding: 9px 10px;
+  font-weight: 760;
 }
 
 .x-node-detail-list dd {
