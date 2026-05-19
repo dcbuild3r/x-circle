@@ -6,6 +6,10 @@ This is a standalone extraction of the X Network graph from the local Obsidian P
 
 ![X Circle sample graph](docs/x-circle-sample.png)
 
+Top 200 circle export:
+
+![X Circle Top 200 export](docs/x-circle-top-200.png)
+
 ## Features
 
 - Force-style X interaction graph with small avatar nodes.
