@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.DS_Store
+public/generated/*
+!public/generated/.gitkeep
+data/x-network/
+*.local

@@ -1,0 +1,35 @@
+{
+  "name": "x-circle",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "lint": "eslint src/ scripts/fetch-x-avatars.ts",
+    "format": "prettier --write 'src/**/*.{ts,tsx,css}' 'scripts/**/*.{ts,py}'",
+    "import:archive": "python3 scripts/build-x-network.py",
+    "fetch:avatars": "tsx scripts/fetch-x-avatars.ts"
+  },
+  "dependencies": {
+    "graphology": "^0.26.0",
+    "lucide-react": "^1.16.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^25.8.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.8.3",
+    "tsx": "^4.22.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.4",
+    "vite": "^8.0.13"
+  }
+}
