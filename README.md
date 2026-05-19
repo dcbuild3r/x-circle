@@ -4,7 +4,7 @@ Turn your X archive into a private, local X network graph and a Top 200 circle s
 
 This is a standalone extraction of the X Network graph from the local Obsidian Portal. It runs fully in the browser after you generate `public/generated/x-network.json` from your own X archive.
 
-![X Circle sample graph](docs/x-circle-sample.jpg)
+![X Circle sample graph](docs/x-circle-sample.png)
 
 ## Features
 
@@ -110,7 +110,7 @@ Optional flags:
 - `--tagged-following path/to/tagged.jsonl`: merge handle metadata such as `name`, `bio`, `verified`, and `tags`.
 - `--me-id 123456`: override your account id if `account.js` is missing or malformed.
 
-## Optional Profile Images
+## Profile Images And Tags
 
 The archive does not include profile images for everyone. You can optionally fetch public X profile images for the top handles:
 
@@ -121,12 +121,35 @@ bun run fetch:avatars
 Useful environment variables:
 
 ```bash
+X_AVATAR_LIMIT=0 bun run fetch:avatars
 X_AVATAR_LIMIT=200 bun run fetch:avatars
 X_AVATAR_HANDLES=alice,bob,charlie bun run fetch:avatars
 X_AVATAR_CONCURRENCY=3 bun run fetch:avatars
 ```
 
+Use `X_AVATAR_LIMIT=0` to try every handle in your generated graph. The default limit is 500 so first runs finish in a reasonable amount of time.
+
 Fetched avatars are saved under `public/generated/x-avatars/` and the generated JSON is updated with local avatar URLs.
+
+The easiest path is to ask Codex to do the avatar and tag enrichment from this repo root after you have imported your archive:
+
+```txt
+I have an X archive extracted at ~/Documents/exports/X/archive/data.
+In this X Circle repo, import the archive, then fetch profile images for every
+handle in public/generated/x-network.json so the graph has pfps. Use the existing
+scripts where possible. Set X_AVATAR_LIMIT=0 if you use the included avatar
+fetch script.
+
+Also infer useful role/tags for the top interactors from public profile names,
+bios, handles, and obvious context. Write the result as JSONL at
+data/x-network/tagged-following.jsonl with fields like handle, name, bio,
+verified, and tags. Then regenerate public/generated/x-network.json with
+--tagged-following data/x-network/tagged-following.jsonl.
+
+Keep generated private archive data out of Git.
+```
+
+Codex should be able to infer most role and tag data from public profile metadata. You can edit `data/x-network/tagged-following.jsonl` afterward if you want more personal labels.
 
 ## Data Model
 
