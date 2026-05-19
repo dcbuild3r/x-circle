@@ -156,4 +156,4 @@ All imported archive data stays local. Do not commit `public/generated/` or `dat
 
 ## Repository Status
 
-This folder is ready to become a public repo. Before publishing, decide whether to keep the MIT license, rename the package, and add screenshots generated from sample data only.
+This repository is designed to be public and ships with sample data only. Keep private archive exports out of Git.
