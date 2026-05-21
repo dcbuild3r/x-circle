@@ -113,7 +113,7 @@ async function worker(
   avatarDir: string,
   filesByHandle: Map<string, string>,
   failures: string[],
-  stats: { saved: number; skipped: number; missing: number },
+  stats: { saved: number; skipped: number; missing: number; attempted: number },
 ) {
   for (;;) {
     const handle = handles.shift();
@@ -132,9 +132,10 @@ async function worker(
       failures.push(`${handle}: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    const done = stats.saved + stats.skipped + stats.missing + failures.length;
-    if (done % 50 === 0) {
-      console.log(`processed ${done}`);
+    stats.attempted += 1;
+    const processed = stats.skipped + stats.attempted;
+    if (processed % 50 === 0) {
+      console.log(`processed ${processed}`);
     }
   }
 }
@@ -164,7 +165,7 @@ async function main(): Promise<void> {
   const handles = handlesFromNetwork(network);
   const filesByHandle = await existingAvatarFiles(avatarDir);
   const queue = handles.filter((handle) => !filesByHandle.has(handle.toLowerCase()));
-  const stats = { saved: 0, skipped: handles.length - queue.length, missing: 0 };
+  const stats = { saved: 0, skipped: handles.length - queue.length, missing: 0, attempted: 0 };
   const failures: string[] = [];
 
   console.log(`fetching ${queue.length} missing avatars (${stats.skipped} already cached)`);

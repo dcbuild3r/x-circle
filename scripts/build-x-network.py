@@ -12,6 +12,8 @@ scores, and emits the browser-ready shape consumed by the React app. It does
 not upload data anywhere.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import re
